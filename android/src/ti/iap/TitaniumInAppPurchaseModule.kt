@@ -17,7 +17,6 @@ import com.android.billingclient.api.BillingClient.SkuType.INAPP
 import com.android.billingclient.api.BillingClient.SkuType.SUBS
 import com.android.billingclient.api.Purchase.PurchaseState.*
 import com.android.billingclient.api.QueryProductDetailsParams.Product
-import com.google.common.collect.ImmutableList
 import org.appcelerator.kroll.KrollDict
 import org.appcelerator.kroll.KrollFunction
 import org.appcelerator.kroll.KrollModule
