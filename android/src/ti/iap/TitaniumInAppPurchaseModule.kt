@@ -10,13 +10,14 @@
 
 package ti.iap
 
-import android.util.Log
 import com.android.billingclient.api.*
 import com.android.billingclient.api.BillingClient.BillingResponseCode.*
 import com.android.billingclient.api.BillingClient.FeatureType.*
 import com.android.billingclient.api.BillingClient.SkuType.INAPP
 import com.android.billingclient.api.BillingClient.SkuType.SUBS
 import com.android.billingclient.api.Purchase.PurchaseState.*
+import com.android.billingclient.api.QueryProductDetailsParams.Product
+import com.google.common.collect.ImmutableList
 import org.appcelerator.kroll.KrollDict
 import org.appcelerator.kroll.KrollFunction
 import org.appcelerator.kroll.KrollModule
@@ -27,11 +28,9 @@ import ti.iap.handlers.BillingConnectionHandler
 import ti.iap.handlers.ProductsHandler
 import ti.iap.handlers.PurchaseHandler
 import ti.iap.helper.QueryHandler
+import ti.iap.models.ProductModel
 import ti.iap.models.PurchaseModel
-import java.lang.Error
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
-import kotlin.coroutines.suspendCoroutine
+
 
 @Kroll.module(name = "TitaniumInAppPurchase", id = "ti.iap")
 class TitaniumInAppPurchaseModule : KrollModule() {
@@ -238,6 +237,47 @@ class TitaniumInAppPurchaseModule : KrollModule() {
         }
     }
 
+    @Kroll.method
+    fun queryProductDetails(args: KrollDict) {
+        if (isBillingLibraryReady(args)) {
+            val callback = args["callback"] as KrollFunction
+
+            val productIdList = args.getStringArray(IAPConstants.Properties.PRODUCT_ID_LIST)
+            val productType = args.optString(IAPConstants.Properties.PRODUCT_TYPE, SKU_TYPE_INAPP)
+
+            val productList: ArrayList<Product> = ArrayList()
+            for (productID in productIdList) {
+                productList.add(
+                    Product.newBuilder()
+                        .setProductId(args.getString(productID))
+                        .setProductType(productType)
+                        .build()
+                )
+            }
+
+            val productListKroll = ArrayList<KrollDict>()
+            val queryProductDetailsParams =
+                QueryProductDetailsParams.newBuilder()
+                    .setProductList(productList)
+                    .build()
+
+            billingClient?.queryProductDetailsAsync(queryProductDetailsParams) { billingResult,
+                                                                                 productDetailsList ->
+                val event = KrollDict()
+                if (billingResult.responseCode == OK) {
+                    if (productDetailsList.isNotEmpty()) {
+                        for (product in productDetailsList) {
+                            productListKroll.add(ProductModel(product).modelData)
+                        }
+                    }
+                    event["productList"] = productListKroll.toTypedArray()
+                    event["code"] = billingResult.responseCode
+                    event["success"] = billingResult.responseCode == OK
+                }
+                callback.callAsync(getKrollObject(), event)
+            }
+        }
+    }
     @Kroll.method
     fun queryPurchasesAsync(args: KrollDict) {
         org.appcelerator.kroll.common.Log.e("Ti.IAP", "The \"queryPurchasesAsync\" API has been removed, use \"queryPurchases\" instead!")
